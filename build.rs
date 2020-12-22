@@ -2,7 +2,13 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::{env, fs};
 
-const INCLUDED_TYPES: &[&str] = &["file_system_type", "mode_t", "umode_t", "ctl_table"];
+const INCLUDED_TYPES: &[&str] = &[
+    "file_system_type",
+    "mode_t",
+    "umode_t",
+    "ctl_table",
+    "mutex",
+];
 const INCLUDED_FUNCTIONS: &[&str] = &[
     "cdev_add",
     "cdev_init",
@@ -25,6 +31,10 @@ const INCLUDED_FUNCTIONS: &[&str] = &[
     "rng_is_initialized",
     "printk",
     "add_device_randomness",
+    "__mutex_init",
+    "mutex_lock",
+    "mutex_trylock",
+    "mutex_unlock",
 ];
 const INCLUDED_VARS: &[&str] = &[
     "EINVAL",
