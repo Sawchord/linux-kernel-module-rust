@@ -2,7 +2,7 @@ use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
-use crate::{bindings, cstr};
+use crate::bindings;
 
 // TODO: Implement Drop for Mutex
 // TODO: Implement Drop for MutexGuard
@@ -10,7 +10,7 @@ use crate::{bindings, cstr};
 // TODO: Implement DerefMut for MutexGuard
 
 pub struct Mutex<T: ?Sized> {
-   mutex: bindings::mutex,
+   mutex: UnsafeCell<bindings::mutex>,
    data: UnsafeCell<T>,
 }
 
@@ -28,9 +28,8 @@ impl<T> Mutex<T> {
          let mut mutex = core::mem::MaybeUninit::<bindings::mutex>::uninit();
 
          bindings::__mutex_init(
-            //&mut mutex as *mut bindings::mutex,
             mutex.as_mut_ptr(),
-            cstr!("").as_ptr() as *const i8,
+            crate::CStr::new_unchecked("\0").as_ptr() as *const i8,
             &mut bindings::lock_class_key {} as *mut bindings::lock_class_key,
          );
 
@@ -38,7 +37,7 @@ impl<T> Mutex<T> {
 
          Self {
             data: UnsafeCell::new(t),
-            mutex,
+            mutex: UnsafeCell::new(mutex),
          }
       }
    }
@@ -47,15 +46,27 @@ impl<T> Mutex<T> {
 impl<T: ?Sized> Mutex<T> {
    pub fn lock(&self) -> MutexGuard<'_, T> {
       unsafe {
-         let ptr: &mut bindings::mutex = core::mem::transmute(&self.mutex);
-         bindings::mutex_lock(ptr as *mut bindings::mutex);
+         bindings::mutex_lock(self.mutex.get());
       }
 
       MutexGuard { lock: &self }
    }
 
    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
-      todo!()
+      unsafe {
+         if bindings::mutex_trylock(self.mutex.get()) != 1 {
+            return None;
+         }
+      }
+
+      Some(MutexGuard { lock: &self })
+   }
+}
+
+impl<T: ?Sized> Drop for MutexGuard<'_, T> {
+   #[inline]
+   fn drop(&mut self) {
+      unsafe { bindings::mutex_unlock(self.lock.mutex.get()) }
    }
 }
 
